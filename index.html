@@ -13,49 +13,43 @@
         body { background-color: var(--bg-color); color: var(--text-main); padding-bottom: 80px; }
         h1, h2 { font-family: 'Playfair Display', serif; font-weight: 400; }
         
-        /* Каталог */
-        .catalog { padding: 20px; display: grid; gap: 20px; }
-        .card { background: var(--card-bg); border-radius: 16px; padding: 15px; display: flex; flex-direction: column; }
-        .card-title { font-size: 20px; color: var(--accent); margin-bottom: 10px; }
-        .card-price { font-size: 18px; margin-bottom: 15px; }
-        
-        /* Кнопки добавления/количества */
-        .add-btn { background: transparent; border: 1px solid var(--accent); color: var(--text-main); padding: 10px; border-radius: 20px; text-transform: uppercase; cursor: pointer; transition: 0.3s; width: 100%; }
-        .add-btn:hover { background: var(--accent); color: #000; }
-        
-        .qty-controls { display: none; justify-content: space-between; align-items: center; background: var(--card-bg); border-radius: 20px; padding: 5px 15px; }
-        .qty-controls.active { display: flex; }
-        .qty-btn { background: transparent; border: none; color: var(--accent); font-size: 20px; width: 30px; cursor: pointer; }
-        
-        /* Плавающая кнопка корзины */
-        .cart-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: #1A1311; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--accent); transform: translateY(100%); transition: 0.3s; z-index: 10; }
-        .cart-bar.active { transform: translateY(0); }
-        .cart-total { font-size: 18px; font-family: 'Playfair Display', serif; }
-        .checkout-btn { background: var(--accent); color: #000; border: none; padding: 10px 20px; border-radius: 20px; font-weight: 600; text-transform: uppercase; cursor: pointer; }
+        .header { padding: 30px 20px; text-align: center; }
+        .header h1 { font-size: 32px; letter-spacing: 2px; }
+        .header p { color: #A09D98; font-size: 11px; letter-spacing: 3px; margin-top: 5px; }
 
-        /* Форма заказа (Модалка) */
+        .catalog { padding: 0 20px; display: grid; gap: 20px; }
+        .card { background: var(--card-bg); border-radius: 16px; padding: 15px; border: 1px solid rgba(255,255,255,0.08); }
+        .card-title { font-size: 20px; color: var(--accent); margin-bottom: 8px; }
+        .card-price { font-size: 18px; margin-bottom: 15px; font-weight: 600; }
+        
+        .add-btn { background: transparent; border: 1px solid var(--accent); color: var(--text-main); padding: 12px; border-radius: 20px; text-transform: uppercase; cursor: pointer; transition: 0.3s; width: 100%; font-size: 12px; font-weight: 600; }
+        .qty-controls { display: none; justify-content: space-between; align-items: center; background: rgba(212, 175, 55, 0.1); border-radius: 20px; padding: 8px 20px; border: 1px solid var(--accent); }
+        .qty-controls.active { display: flex; }
+        .qty-btn { background: transparent; border: none; color: var(--accent); font-size: 24px; cursor: pointer; padding: 0 10px; }
+        .qty-val { font-size: 18px; font-weight: 600; color: #fff; }
+
+        /* Модалка оформления */
         .checkout-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 100; padding: 20px; overflow-y: auto; display: none; }
         .checkout-modal.active { display: block; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; font-size: 12px; color: #A09D98; margin-bottom: 5px; text-transform: uppercase; }
-        input, select, textarea { width: 100%; background: var(--card-bg); border: 1px solid #333; color: #fff; padding: 12px; border-radius: 10px; font-size: 14px; outline: none; }
-        input:focus, select:focus, textarea:focus { border-color: var(--accent); }
-        .radio-group { display: flex; gap: 10px; margin-bottom: 15px; }
-        .radio-group label { background: var(--card-bg); padding: 10px; border-radius: 10px; flex: 1; text-align: center; border: 1px solid #333; cursor: pointer; }
-        .radio-group input[type="radio"]:checked + label { border-color: var(--accent); color: var(--accent); }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 12px; color: #A09D98; margin-bottom: 8px; text-transform: uppercase; }
+        input, select, textarea { width: 100%; background: var(--card-bg); border: 1px solid #333; color: #fff; padding: 15px; border-radius: 12px; font-size: 14px; outline: none; }
+        input:focus, textarea:focus { border-color: var(--accent); }
+        .radio-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        .radio-group label { background: var(--card-bg); padding: 15px; border-radius: 12px; flex: 1; text-align: center; border: 1px solid #333; cursor: pointer; font-size: 14px; }
+        .radio-group input[type="radio"]:checked + label { border-color: var(--accent); color: var(--accent); background: rgba(212, 175, 55, 0.05); }
         .radio-group input[type="radio"] { display: none; }
         
-        .submit-order { background: var(--accent); color: #000; border: none; padding: 15px; border-radius: 10px; width: 100%; font-weight: bold; text-transform: uppercase; margin-top: 20px; cursor: pointer; }
-        .close-modal { color: var(--text-main); text-align: right; display: block; margin-bottom: 20px; text-decoration: none; font-size: 24px; }
+        .close-modal { position: absolute; top: 20px; right: 20px; font-size: 28px; color: var(--text-main); text-decoration: none; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div style="padding: 20px; text-align: center;">
+    <div class="header">
         <h1>L'Éphémère</h1>
-        <p style="color: #A09D98; font-size: 12px; letter-spacing: 2px;">БУТИК ФЛОРИСТИКИ</p>
+        <p>ВЫСОКАЯ ФЛОРИСТИКА</p>
     </div>
 
-    <div class="catalog">
+    <div class="catalog" id="catalog-view">
         <div class="card" data-id="1" data-name="Эквадорская Роза" data-price="2990">
             <h2 class="card-title">Эквадорская Роза</h2>
             <div class="card-price">2 990 ₽</div>
@@ -67,7 +61,7 @@
             </div>
         </div>
         
-        <div class="card" data-id="2" data-name="Сара Бернар" data-price="4590">
+        <div class="card" data-id="2" data-name="Пионы Сара Бернар" data-price="4590">
             <h2 class="card-title">Пионы Сара Бернар</h2>
             <div class="card-price">4 590 ₽</div>
             <button class="add-btn" onclick="addToCart(this)">В корзину</button>
@@ -79,14 +73,9 @@
         </div>
     </div>
 
-    <div class="cart-bar" id="cart-bar">
-        <div class="cart-total" id="cart-total">0 ₽</div>
-        <button class="checkout-btn" onclick="openCheckout()">Оформить</button>
-    </div>
-
     <div class="checkout-modal" id="checkout-modal">
         <span class="close-modal" onclick="closeCheckout()">✕</span>
-        <h2 style="margin-bottom: 20px; color: var(--accent);">Оформление</h2>
+        <h2 style="margin-bottom: 25px; color: var(--accent); margin-top: 40px;">Оформление</h2>
         
         <div class="radio-group">
             <input type="radio" id="del" name="delivery" value="Доставка" checked onchange="toggleAddress(true)">
@@ -96,27 +85,25 @@
         </div>
 
         <div class="form-group">
-            <label>Имя получателя</label>
+            <label>Имя получателя *</label>
             <input type="text" id="c_name" placeholder="Иван Иванов">
         </div>
         <div class="form-group">
-            <label>Телефон</label>
+            <label>Телефон *</label>
             <input type="tel" id="c_phone" placeholder="+7 (999) 000-00-00">
         </div>
         <div class="form-group" id="address-group">
-            <label>Адрес доставки</label>
+            <label>Адрес доставки *</label>
             <input type="text" id="c_address" placeholder="Улица, дом, квартира">
         </div>
         <div class="form-group">
-            <label>Время (когда нужно)</label>
+            <label>Время (когда нужно) *</label>
             <input type="text" id="c_time" placeholder="Сегодня к 18:00">
         </div>
         <div class="form-group">
-            <label>Комментарий (пожелания)</label>
-            <textarea id="c_comment" rows="3" placeholder="Записка в букет, особенности доставки..."></textarea>
+            <label>Комментарий</label>
+            <textarea id="c_comment" rows="2" placeholder="Записка в букет..."></textarea>
         </div>
-
-        <button class="submit-order" onclick="sendOrder()">Подтвердить заказ</button>
     </div>
 
     <script>
@@ -124,7 +111,11 @@
         tg.expand();
         tg.ready();
 
-        let cart = {}; // Объект корзины
+        // Настраиваем нативную кнопку Telegram
+        tg.MainButton.textColor = "#0A0A0C";
+        tg.MainButton.color = "#D4AF37";
+
+        let cart = {}; 
 
         function addToCart(btn) {
             const card = btn.closest('.card');
@@ -166,24 +157,36 @@
                 itemsCount += cart[id].qty;
             }
             
-            document.getElementById('cart-total').innerText = total + ' ₽';
-            
-            const cartBar = document.getElementById('cart-bar');
             if (itemsCount > 0) {
-                cartBar.classList.add('active');
+                // Если мы НЕ в режиме оформления, показываем кнопку "Перейти к оформлению"
+                if (!document.getElementById('checkout-modal').classList.contains('active')) {
+                    tg.MainButton.setText(`ОФОРМИТЬ ЗАКАЗ НА ${total} ₽`);
+                    tg.MainButton.show();
+                    tg.MainButton.onClick(openCheckout);
+                }
             } else {
-                cartBar.classList.remove('active');
+                tg.MainButton.hide();
                 closeCheckout();
             }
         }
 
         function openCheckout() {
             document.getElementById('checkout-modal').classList.add('active');
-            tg.MainButton.hide(); // Прячем системную кнопку ТГ, если использовали
+            document.getElementById('catalog-view').style.display = 'none';
+            
+            // Меняем поведение главной кнопки на отправку данных
+            tg.MainButton.offClick(openCheckout);
+            tg.MainButton.setText('ПОДТВЕРДИТЬ И ОТПРАВИТЬ');
+            tg.MainButton.onClick(sendOrder);
         }
 
         function closeCheckout() {
             document.getElementById('checkout-modal').classList.remove('active');
+            document.getElementById('catalog-view').style.display = 'grid';
+            
+            // Возвращаем кнопку в режим корзины
+            tg.MainButton.offClick(sendOrder);
+            updateCartUI(); 
         }
 
         function toggleAddress(show) {
@@ -191,16 +194,15 @@
         }
 
         function sendOrder() {
-            // Собираем данные
             const deliveryType = document.querySelector('input[name="delivery"]:checked').value;
-            const name = document.getElementById('c_name').value;
-            const phone = document.getElementById('c_phone').value;
-            const address = document.getElementById('c_address').value;
-            const time = document.getElementById('c_time').value;
-            const comment = document.getElementById('c_comment').value;
+            const name = document.getElementById('c_name').value.trim();
+            const phone = document.getElementById('c_phone').value.trim();
+            const address = document.getElementById('c_address').value.trim();
+            const time = document.getElementById('c_time').value.trim();
+            const comment = document.getElementById('c_comment').value.trim();
 
             if (!name || !phone || !time || (deliveryType === 'Доставка' && !address)) {
-                tg.showAlert("Пожалуйста, заполните все обязательные поля");
+                tg.showAlert("⚠️ Пожалуйста, заполните все обязательные поля (Имя, Телефон, Адрес, Время)");
                 return;
             }
 
@@ -223,6 +225,7 @@
             };
 
             tg.HapticFeedback.notificationOccurred('success');
+            // Вот та самая магия, которая теперь 100% сработает
             tg.sendData(JSON.stringify(finalData));
         }
     </script>

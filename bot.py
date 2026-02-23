@@ -27,8 +27,8 @@ from aiogram.enums import ParseMode
 # ╔══════════════════════════════════════╗
 # ║  👇 ВСТАВЬ СЮДА СВОИ ДАННЫЕ         ║
 # ╚══════════════════════════════════════╝
-BOT_TOKEN  = os.getenv("7919060307:AAG4s1TyF7N8cRGsZS4fKDnSaRjTguGpqVE",  "ВСТАВЬ_ТОКЕН_СЮДА")
-ADMIN_ID   = int(os.getenv("ADMIN_ID", "1655167987"))   # ← замени на свой ID
+BOT_TOKEN  = os.getenv("7919060307:AAG4s1TyF7N8cRGsZS4fKDnSaRjTguGpqVE",  "7919060307:AAG4s1TyF7N8cRGsZS4fKDnSaRjTguGpqVE")
+ADMIN_ID   = int(os.getenv("1655167987", "1655167987"))   # ← замени на свой ID
 WEBAPP_URL = os.getenv("https://v1ksssqqpon-oss.github.io/cveti20/", "ВСТАВЬ_ССЫЛКУ_НА_INDEX_HTML")
 
 # ──────────────────────────────────────

@@ -28,7 +28,7 @@ from aiogram.enums import ParseMode
 # ╚══════════════════════════════════════╝
 BOT_TOKEN  = "7919060307:AAG4s1TyF7N8cRGsZS4fKDnSaRjTguGpqVE"        # от @BotFather
 ADMIN_ID   =  1655167987               # твой Telegram ID (от @userinfobot)
-WEBAPP_URL = "ВСТАВЬ_ССЫЛКУ_НА_INDEX_HTML"  # https://... (адрес index.html)
+WEBAPP_URL = "https://v1ksssqqpon-oss.github.io/cveti20/"  # https://... (адрес index.html)
 
 # ──────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")

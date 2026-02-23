@@ -1,166 +1,209 @@
-import asyncio, json, logging, os
-from pathlib import Path
-from datetime import datetime
-from aiogram import Bot, Dispatcher, F, Router
-from aiogram.filters import CommandStart, Command
-from aiogram.types import (
-    Message, CallbackQuery,
-    InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
-)
+import os
+import json
+import sqlite3
+import asyncio
+import logging
+from dotenv import load_dotenv
+from aiogram import Bot, Dispatcher, Router, F
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ContentType
+from aiogram.filters import CommandStart
+from aiogram.types.web_app_info import WebAppInfo
 from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
+from aiogram.filters.callback_data import CallbackData
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 
-# ══════════════════════════════════════
-# НАСТРОЙКИ
-# ══════════════════════════════════════
-BOT_TOKEN  = "7919060307:AAG4s1TyF7N8cRGsZS4fKDnSaRjTguGpqVE"
-ADMIN_ID   = 1655167987  # Твой ID
-WEBAPP_URL = "https://v1ksssqqpon-oss.github.io/cveti20/"
+load_dotenv()
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-log = logging.getLogger(__name__)
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+WEBAPP_URL = os.getenv("WEBAPP_URL")
+ADMIN_ID = os.getenv("ADMIN_ID")
+# Реквизиты для оплаты
+PAYMENT_DETAILS = "Сбербанк / Т-Банк: 0000 0000 0000 0000 (Иван И.)"
+
+if not all([BOT_TOKEN, WEBAPP_URL, ADMIN_ID]):
+    raise ValueError("ОШИБКА: Проверь .env! Нужны BOT_TOKEN, WEBAPP_URL и ADMIN_ID")
+
+# --- База Данных ---
+def init_db():
+    conn = sqlite3.connect("shop.db")
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            username TEXT,
+            items TEXT,
+            total INTEGER,
+            delivery_type TEXT,
+            client_name TEXT,
+            phone TEXT,
+            address TEXT,
+            time TEXT,
+            comment TEXT,
+            status TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# --- FSM (Состояния) ---
+class AdminState(StatesGroup):
+    waiting_for_comment = State()
+
+class OrderCB(CallbackData, prefix="order"):
+    action: str
+    order_id: int
 
 router = Router()
-DB_FILE = Path("orders.json")
 
-def db_load():
-    if DB_FILE.exists():
-        try: return json.loads(DB_FILE.read_text(encoding="utf-8"))
-        except: return {}
-    return {}
-
-def db_save(orders):
-    try:
-        DB_FILE.write_text(json.dumps(orders, ensure_ascii=False, indent=2), encoding="utf-8")
-    except Exception as e:
-        log.error(f"Ошибка сохранения файла: {e}")
-
-ORDERS = db_load()
-
-STATUSES = {
-    "new": ("🆕", "Новый"),
-    "confirmed": ("✅", "Подтверждён"),
-    "preparing": ("💐", "Собирается"),
-    "delivering": ("🚚", "Едет к вам"),
-    "done": ("🎉", "Доставлен"),
-    "cancelled": ("❌", "Отменён"),
-}
-
-# ══════════════════════════════════════
-# КЛАВИАТУРА АДМИНА
-# ══════════════════════════════════════
-def _admin_kb(oid: str, current: str = "new") -> InlineKeyboardMarkup:
-    btns = []
-    row = []
-    for s, (icon, label) in STATUSES.items():
-        if s == "new": continue
-        row.append(InlineKeyboardButton(text=f"{icon} {label}", callback_data=f"st:{oid}:{s}"))
-        if len(row) == 2:
-            btns.append(row)
-            row = []
-    if row: btns.append(row)
-    return InlineKeyboardMarkup(inline_keyboard=btns)
-
-# ══════════════════════════════════════
-# КОМАНДЫ
-# ══════════════════════════════════════
 @router.message(CommandStart())
 async def cmd_start(message: Message):
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🌸 Открыть каталог", web_app=WebAppInfo(url=WEBAPP_URL))],
-        [
-            InlineKeyboardButton(text="📦 Мои заказы", callback_data="my_orders"),
-            InlineKeyboardButton(text="📞 Контакты",   callback_data="contacts"),
-        ],
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✨ Открыть Каталог", web_app=WebAppInfo(url=WEBAPP_URL))]
     ])
-    await message.answer(
-        f"Привет, <b>{message.from_user.first_name}</b>! 🌸\n"
-        "Добро пожаловать в Флора Бутик.\n\n"
-        "Нажми кнопку ниже, чтобы выбрать букет.",
-        reply_markup=kb
-    )
+    await message.answer("<b>MAISON DES FLEURS</b>\n\nСоберите свой идеальный букет.", reply_markup=markup)
 
-# ══════════════════════════════════════
-# ПРИЁМ ЗАКАЗА (ИСПРАВЛЕНО)
-# ══════════════════════════════════════
+# --- 1. Получение заказа из WebApp ---
 @router.message(F.web_app_data)
-async def got_order(message: Message, bot: Bot):
-    user = message.from_user
-    raw_data = message.web_app_data.data
-    log.info(f"Получены данные: {raw_data}")
+async def process_web_app_data(message: Message, bot: Bot):
+    try:
+        data = json.loads(message.web_app_data.data)
+        
+        # Сохраняем расширенный заказ
+        conn = sqlite3.connect("shop.db")
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO orders (user_id, username, items, total, delivery_type, client_name, phone, address, time, comment, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            message.from_user.id, message.from_user.username, 
+            json.dumps(data['items'], ensure_ascii=False), data['total'],
+            data['delivery_type'], data['name'], data['phone'], 
+            data.get('address', ''), data['time'], data.get('comment', ''), "new"
+        ))
+        order_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        # Формируем список товаров для текста
+        items_text = "\n".join([f"▫️ {item['name']} x{item['qty']} ({item['price'] * item['qty']} ₽)" for item in data['items']])
+
+        # Ответ клиенту
+        client_text = f"🧾 <b>Заказ №{order_id} оформлен!</b>\n\n{items_text}\n\n💳 <b>Итого:</b> {data['total']} ₽\n⏳ <i>Менеджер проверяет наличие. Ожидайте подтверждения...</i>"
+        await message.answer(client_text)
+
+        # Уведомление админу
+        admin_text = (
+            f"🚨 <b>НОВЫЙ ЗАКАЗ №{order_id}</b>\n\n"
+            f"👤 <b>Клиент:</b> {data['name']} (@{message.from_user.username})\n"
+            f"📞 <b>Телефон:</b> {data['phone']}\n"
+            f"🚚 <b>Тип:</b> {data['delivery_type']}\n"
+            f"📍 <b>Адрес/Время:</b> {data.get('address', 'Самовывоз')} | {data['time']}\n"
+            f"💬 <b>Коммент:</b> {data.get('comment', 'Нет')}\n\n"
+            f"<b>Корзина:</b>\n{items_text}\n\n"
+            f"💰 <b>Сумма:</b> {data['total']} ₽"
+        )
+        
+        builder = InlineKeyboardBuilder()
+        builder.button(text="✅ Одобрить", callback_data=OrderCB(action="approve", order_id=order_id))
+        builder.button(text="❌ Отклонить", callback_data=OrderCB(action="reject", order_id=order_id))
+        
+        await bot.send_message(chat_id=ADMIN_ID, text=admin_text, reply_markup=builder.as_markup())
+    except Exception as e:
+        logging.error(f"Ошибка заказа: {e}")
+
+# --- 2. Админ нажимает Одобрить/Отклонить ---
+@router.callback_query(OrderCB.filter())
+async def admin_process_order(call: CallbackQuery, callback_data: OrderCB, state: FSMContext):
+    if str(call.from_user.id) != str(ADMIN_ID):
+        return await call.answer("Нет доступа", show_alert=True)
+
+    await state.update_data(order_id=callback_data.order_id, action=callback_data.action)
+    await state.set_state(AdminState.waiting_for_comment)
+    
+    action_ru = "одобрения" if callback_data.action == "approve" else "отклонения"
+    await call.message.answer(f"✍️ Введите комментарий для клиента (причина {action_ru} или уточнение):")
+    await call.answer()
+
+# --- 3. Админ пишет комментарий, бот отправляет реквизиты клиенту ---
+@router.message(AdminState.waiting_for_comment)
+async def admin_comment_received(message: Message, state: FSMContext, bot: Bot):
+    data = await state.get_data()
+    order_id = data['order_id']
+    action = data['action']
+    admin_comment = message.text
+
+    conn = sqlite3.connect("shop.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id, total FROM orders WHERE id = ?", (order_id,))
+    order_data = cursor.fetchone()
+    
+    if not order_data:
+        await message.answer("Ошибка: Заказ не найден.")
+        return await state.clear()
+        
+    user_id, total = order_data
+
+    if action == "approve":
+        cursor.execute("UPDATE orders SET status = 'awaiting_receipt' WHERE id = ?", (order_id,))
+        client_msg = (
+            f"✅ <b>Заказ №{order_id} одобрен!</b>\n\n"
+            f"💬 <b>Комментарий менеджера:</b> <i>{admin_comment}</i>\n\n"
+            f"💳 К оплате: <b>{total} ₽</b>\n"
+            f"🏦 Реквизиты: <code>{PAYMENT_DETAILS}</code>\n\n"
+            f"📸 <b>Пожалуйста, отправьте фото чека об оплате прямо в этот чат.</b>"
+        )
+        await message.answer(f"Заказ №{order_id} одобрен. Ждем чек от клиента.")
+    else:
+        cursor.execute("UPDATE orders SET status = 'rejected' WHERE id = ?", (order_id,))
+        client_msg = (
+            f"❌ <b>Заказ №{order_id} отклонен.</b>\n\n"
+            f"💬 <b>Причина:</b> <i>{admin_comment}</i>"
+        )
+        await message.answer(f"Заказ №{order_id} отклонен.")
+
+    conn.commit()
+    conn.close()
+    await state.clear()
 
     try:
-        order = json.loads(raw_data)
+        await bot.send_message(chat_id=user_id, text=client_msg)
     except Exception as e:
-        log.error(f"Ошибка JSON: {e}")
-        return
+        logging.error(f"Не удалось отправить сообщение клиенту {user_id}")
 
-    oid = order.get("order_id") or f"ФЛ-{user.id}-{int(datetime.now().timestamp())}"
-    total = order.get("total", 0)
-    items = order.get("items", [])
-    client = order.get("client", {})
-    dlv_type = order.get("delivery_type", "courier")
-    delivery = "Курьер" if dlv_type == "courier" else "Самовывоз"
-
-    # Сохраняем заказ
-    ORDERS[oid] = {
-        "order_id": oid, "status": "new", "user_id": user.id,
-        "full_name": user.full_name, "username": user.username or "",
-        "client": client, "items": items, "total": total,
-        "delivery": delivery, "created": datetime.now().strftime("%d.%m.%Y %H:%M")
-    }
-    db_save(ORDERS)
-
-    # Текст для клиента и админа
-    items_text = "\n".join([f"  🌸 {i.get('name')} x{i.get('qty')} = {i.get('price')*i.get('qty'):,} ₽" for i in items])
+# --- 4. Клиент отправляет фото (чек) ---
+@router.message(F.photo)
+async def process_receipt(message: Message, bot: Bot):
+    conn = sqlite3.connect("shop.db")
+    cursor = conn.cursor()
+    # Ищем заказ клиента, который ждет оплаты
+    cursor.execute("SELECT id FROM orders WHERE user_id = ? AND status = 'awaiting_receipt'", (message.from_user.id,))
+    order = cursor.fetchone()
     
-    # Ответ клиенту
-    await message.answer(f"✅ <b>Заказ №{oid} принят!</b>\n\n<b>Букеты:</b>\n{items_text}\n\n💰 <b>Итого: {total:,} ₽</b>")
-
-    # УВЕДОМЛЕНИЕ АДМИНИСТРАТОРУ
-    addr_line = f"\n📍 Адрес: {client.get('addr', '—')}" if dlv_type == "courier" else ""
-    admin_text = (
-        f"🛒 <b>НОВЫЙ ЗАКАЗ #{oid}</b>\n\n"
-        f"👤 Клиент: {user.full_name} (@{user.username or '—'})\n"
-        f"📞 Тел: <code>{client.get('phone', '—')}</code>{addr_line}\n\n"
-        f"<b>Состав:</b>\n{items_text}\n\n"
-        f"💰 <b>Сумма: {total:,} ₽</b> ({delivery})"
-    )
-
-    try:
-        await bot.send_message(chat_id=ADMIN_ID, text=admin_text, reply_markup=_admin_kb(oid))
-        log.info(f"✅ Уведомление успешно отправлено админу {ADMIN_ID}")
-    except Exception as e:
-        log.error(f"❌ Ошибка отправки админу {ADMIN_ID}: {e}")
-
-# ══════════════════════════════════════
-# СТАТУСЫ И ДРУГОЕ
-# ══════════════════════════════════════
-@router.callback_query(F.data.startswith("st:"))
-async def cb_set_status(cb: CallbackQuery, bot: Bot):
-    if cb.from_user.id != ADMIN_ID: return
-    _, oid, new_status = cb.data.split(":")
-    
-    if oid in ORDERS:
-        ORDERS[oid]["status"] = new_status
-        db_save(ORDERS)
-        icon, label = STATUSES[new_status]
-        await cb.answer(f"Статус: {label}")
-        try:
-            await bot.send_message(ORDERS[oid]["user_id"], f"🌸 Статус заказа <b>#{oid}</b> изменен на: <b>{label}</b> {icon}")
-        except: pass
-
-@router.callback_query(F.data == "contacts")
-async def cb_contacts(cb: CallbackQuery):
-    await cb.message.answer("📞 <b>Контакты:</b>\nМенеджер: @flora_manager\nТелефон: +7 (495) 000-00-00")
-    await cb.answer()
+    if order:
+        order_id = order[0]
+        cursor.execute("UPDATE orders SET status = 'paid_check_pending' WHERE id = ?", (order_id,))
+        conn.commit()
+        
+        await message.answer("✅ Чек получен! Менеджер скоро проверит оплату и свяжется с вами.")
+        
+        # Пересылаем чек админу
+        await bot.send_photo(
+            chat_id=ADMIN_ID, 
+            photo=message.photo[-1].file_id, 
+            caption=f"💰 <b>ЧЕК ПО ЗАКАЗУ №{order_id}</b>\nОт: @{message.from_user.username}\n\n<i>Для уточнения деталей напишите клиенту в личные сообщения.</i>"
+        )
+    conn.close()
 
 async def main():
-    bot = Bot(BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode='HTML'))
     dp = Dispatcher()
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
-    log.info("Бот запущен...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
